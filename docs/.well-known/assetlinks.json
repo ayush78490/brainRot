@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.reeltracker",
+      "sha256_cert_fingerprints": [
+        "1B:49:72:53:56:83:6E:A4:61:F3:F5:84:4B:6D:6E:24:62:BF:EE:6D:4D:E9:15:BE:E9:40:34:04:3F:14:BE:4A"
+      ]
+    }
+  }
+]

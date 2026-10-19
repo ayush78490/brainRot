@@ -37,7 +37,7 @@ class Detector(
 
         return when (signal) {
             is UiSignal.Foreground ->
-                if (signal.pkg != ReelsContext.PACKAGE && !ReelsContext.isOverlayPackage(signal.pkg)) exit()
+                if (signal.pkg != ReelsContext.PACKAGE && !ReelsContext.isOverlay(signal.pkg, signal.cls)) exit()
                 else NONE
 
             is UiSignal.WindowState ->

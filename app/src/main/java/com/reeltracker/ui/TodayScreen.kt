@@ -68,6 +68,7 @@ fun TodayScreen(
     onOpenAccessibility: () -> Unit,
     onExport: () -> Unit,
     onAddWidget: () -> Unit,
+    friendsCard: @Composable () -> Unit = {},
 ) {
     val p = LocalPalette.current
     val clock = Clock(is24h)
@@ -88,6 +89,7 @@ fun TodayScreen(
         if (tracking != Tracking.On) item { TrackingCard(tracking, onOpenAccessibility) }
         item { Hero(stats.count, lastEventAt, now, clock) }
         item { BrainCard(stats.count, onAddWidget) }
+        item { friendsCard() }
         item { StatRow(stats) }
         item {
             Panel("By hour") {
@@ -148,7 +150,7 @@ private fun StatusPill(tracking: Tracking, onClick: () -> Unit, modifier: Modifi
 }
 
 @Composable
-private fun PulsingDot(color: Color) {
+internal fun PulsingDot(color: Color) {
     val a = rememberInfiniteTransition(label = "pulse").animateFloat(
         initialValue = 1f, targetValue = 0.35f,
         animationSpec = infiniteRepeatable(tween(1100), RepeatMode.Reverse), label = "alpha",
@@ -162,7 +164,7 @@ private fun TrackingCard(tracking: Tracking, onClick: () -> Unit) {
     Panel(if (tracking == Tracking.Off) "Tracking is off" else "Tracking stopped") {
         Text(
             if (tracking == Tracking.Off) {
-                "Turn on Brainrot in Accessibility settings. It reads which list scrolled and its position, nothing else, and never leaves this phone."
+                "Turn on Brainrot in Accessibility settings. It reads which list scrolled and its position, nothing else."
             } else {
                 "The service is enabled but isn't running. The system probably stopped it to save battery. Turn it off and on again in Accessibility settings, and set battery use for Brainrot to Unrestricted."
             },
@@ -264,7 +266,7 @@ private fun StatRow(stats: DayStats) {
 }
 
 @Composable
-private fun StatTile(label: String, value: String, modifier: Modifier = Modifier) {
+internal fun StatTile(label: String, value: String, modifier: Modifier = Modifier) {
     val p = LocalPalette.current
     Column(
         modifier
@@ -352,12 +354,12 @@ private fun Footer(exportMessage: String?, onExport: () -> Unit) {
             Text(it, style = MaterialTheme.typography.bodySmall, color = p.textMuted)
         }
         Spacer(Modifier.height(4.dp))
-        Text("Counted on this phone. Nothing leaves it.", style = MaterialTheme.typography.bodySmall, color = p.textMuted)
+        Text("Counted on this phone. Only daily totals are shared, and only once you connect.", style = MaterialTheme.typography.bodySmall, color = p.textMuted)
     }
 }
 
 @Composable
-private fun Panel(title: String, subtitle: String? = null, content: @Composable () -> Unit) {
+internal fun Panel(title: String, subtitle: String? = null, content: @Composable () -> Unit) {
     val p = LocalPalette.current
     Column(
         Modifier

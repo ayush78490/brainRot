@@ -8,7 +8,7 @@
 <meta name="description" content="Brainrot counts every Instagram Reel you swipe through, on your Android phone, offline, and shows a brain that gets grosser with every one.">
 <meta name="theme-color" content="#0c0a10">
 <meta property="og:title" content="Brainrot — watch your brain rot, one reel at a time">
-<meta property="og:description" content="Counts every Reel you swipe. A brain rots on top of Instagram as the number climbs. Offline, no account.">
+<meta property="og:description" content="Counts every Reel you swipe. A brain rots on top of Instagram as the number climbs. Counting stays on your phone; friends are optional.">
 <meta property="og:image" content="assets/brain-6.png">
 <link rel="icon" href="assets/brain-0.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -124,6 +124,20 @@
     background: transparent; color: var(--ink);
     border-color: var(--line); box-shadow: none;
   }
+  .invite {
+    display: none; margin: 0 0 22px; padding: 16px 18px;
+    background: var(--card); border: 2px solid var(--slime); border-radius: var(--r);
+    box-shadow: 4px 4px 0 var(--black); max-width: 560px;
+  }
+  .invite.on { display: block; }
+  .invite p { margin: 0 0 10px; color: var(--ink-2); }
+  .invite p strong { color: var(--ink); }
+  .invite code {
+    font-family: var(--mono); font-weight: 700; font-size: 22px; letter-spacing: 3px;
+    color: var(--slime); background: var(--black); padding: 4px 10px; border-radius: 10px;
+  }
+  .invite .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .invite .btn { padding: 10px 16px; font-size: 15px; box-shadow: 3px 3px 0 var(--black); }
   .btn-ghost:hover { border-color: var(--ink-2); box-shadow: none; transform: none; }
   .btn:focus-visible, a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible {
     outline: 3px solid var(--cyan); outline-offset: 3px;
@@ -510,6 +524,13 @@
   <section class="hero">
     <div class="wrap">
       <div>
+        <div class="invite" id="invite" role="status">
+          <p><strong>A friend invited you.</strong> Install Brainrot, connect your Instagram, and you'll see each other's reel counts live. Your code is copied when you tap Download.</p>
+          <div class="row">
+            <code id="inviteCode"></code>
+            <a class="btn" id="inviteOpen" href="#">Already have it? Open in Brainrot</a>
+          </div>
+        </div>
         <h1>Watch your brain <span class="drip">rot</span>, one reel at a time.</h1>
         <p class="lede">Brainrot counts every Instagram Reel you swipe through, right on your phone. A little brain floats on top of Reels and gets grosser with every one. The number is honest enough to be annoying, and that's the point.</p>
         <div class="cta">
@@ -520,8 +541,8 @@
           <a class="btn btn-ghost" href="#install">How to install →</a>
         </div>
         <ul class="chips">
-          <li>No internet permission</li>
-          <li>No account</li>
+          <li>No Instagram login</li>
+          <li>Friends optional</li>
           <li>No ads</li>
           <li>Open source</li>
         </ul>
@@ -634,7 +655,7 @@
         <article class="tile w3 reveal">
           <div class="ico" style="--c: var(--sticker)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
           <h3>Stays on your phone</h3>
-          <p>The app has no internet permission, so it can't send anything anywhere. No account, no analytics. Your history lives in a small database on your phone.</p>
+          <p>Counting happens on your phone and your history lives in a small database there. Nothing is sent unless you connect for friends, and then only your username, name and daily totals. No analytics.</p>
         </article>
 
         <article class="tile w3 reveal">
@@ -699,7 +720,7 @@
           <li class="step reveal">
             <h3>If Play Protect complains, install anyway</h3>
             <p>You might see <i>"Unsafe app blocked"</i> or <i>"Unrecognized developer"</i>. Tap <b>More details</b>, then <b>Install anyway</b>.</p>
-            <p class="why">Why: the app isn't from the Play Store and uses the Accessibility API, and Play Protect flags that combination. The app has no internet permission, so it has no way to send anything off your phone.</p>
+            <p class="why">Why: the app isn't from the Play Store and uses the Accessibility API, and Play Protect flags that combination. It never reads your passwords or messages, and sends nothing until you choose to add friends.</p>
           </li>
 
           <li class="step opt reveal">
@@ -759,9 +780,9 @@
         <div class="plist never reveal">
           <h3>What it never touches</h3>
           <ul>
-            <li>Captions, comments, usernames or messages</li>
+            <li>Captions, comments, messages, or anyone else's username</li>
             <li>Screenshots, recordings, or anything you type</li>
-            <li>The internet. There's no permission for it.</li>
+            <li>The internet, unless you connect for friends. Then only your username, name and daily reel totals.</li>
             <li>Your Instagram account. You never log in to anything.</li>
           </ul>
         </div>
@@ -857,6 +878,19 @@
 
   // Preload sprites so stage swaps never flash.
   STAGES.forEach((_, i) => { const im = new Image(); im.src = brain(i); });
+
+  // ---------------------------------------------------------------- invite links
+  // ?invite=CODE. The app reads the copied link from the clipboard on first launch, because a
+  // sideloaded APK has no other way to receive it. brainrot://invite/CODE opens an installed app.
+  const code = (new URLSearchParams(location.search).get("invite") || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (/^[A-Z0-9]{8}$/.test(code)) {
+    const link = `${location.origin}/?invite=${code}`;
+    document.getElementById("inviteCode").textContent = code;
+    document.getElementById("inviteOpen").href = `brainrot://invite/${code}`;
+    document.getElementById("invite").classList.add("on");
+    const copy = () => navigator.clipboard?.writeText(link).catch(() => {});
+    document.querySelectorAll("[data-dl]").forEach(a => a.addEventListener("click", copy));
+  }
 
   // ---------------------------------------------------------------- marquee
   const fill = (el, words) => {

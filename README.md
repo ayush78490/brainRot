@@ -6,11 +6,13 @@ An Android app that counts the Instagram Reels you swipe through, and shows you 
 a little more with every one.
 
 - **Counts reels, on the phone.** An accessibility service watches which list scrolled and where
-  it landed. It never reads captions, usernames or messages, and makes no network calls.
+  it landed. It never reads captions or messages.
 - **Floating brain over Reels.** While Reels is open, a draggable brain shows today's count. It
   drips with every reel and visibly rots as the number climbs.
 - **Home-screen widget.** Today's count and the brain's current state, on your home screen.
 - **Today screen.** The count, time spent, sittings, reels per hour, and seconds per reel.
+- **Friends (optional).** Connect your Instagram username, share an invite link, and you and your
+  friends see each other's daily counts live. Nothing leaves the phone until you connect.
 
 ---
 
@@ -97,10 +99,49 @@ Instagram ──AccessibilityEvent──▶ ReelAccessibilityService ──UiSig
 
 ### Privacy
 
-- No internet permission (check the merged manifest), no analytics, no accounts. Everything stays in a local Room database
-  (`reels.db`).
-- Never reads captions, usernames, comments or messages.
+- Counting is local: every event lives in a Room database (`reels.db`). No analytics.
+- Nothing is sent until you connect for friends. Then the app sends your Instagram username and
+  name (read once off your own profile screen, only while you're connecting) and today's totals
+  (reel count and seconds in Reels). See [Friends](#friends).
+- Never reads captions, comments, messages, or anyone else's profile.
 - The debug export (below) contains event types, view ids, positions and hashes, never text.
+
+---
+
+## Friends
+
+Supabase, called directly from the app with the public anon key. No other backend.
+
+1. **Connect.** The app arms a one-shot capture and opens Instagram. When the Profile tab is
+   selected (so it's your own profile, not someone else's), the service reads `action_bar_title`
+   and `profile_header_full_name_above_vanity` by id, then brings Brainrot back to confirm
+   ([`ProfileReader.kt`](service/src/main/java/com/reeltracker/service/ProfileReader.kt)). This is
+   a capture, not proof of ownership: Instagram offers no way to verify without its API.
+2. **Identity.** Each install signs in to Supabase anonymously. `upsert_profile` creates the profile
+   and an 8-character invite code.
+3. **Invite.** The share link is `https://brain-rot-drab.vercel.app/?invite=CODE`. The site copies it
+   when the APK is downloaded, and the app offers it from the clipboard on first launch. If the app
+   is already installed, the link opens it directly (App Link, verified by
+   [`docs/.well-known/assetlinks.json`](docs/.well-known/assetlinks.json)). `redeem_invite` makes
+   the friendship both ways.
+4. **Live counts.** The service sends today's *totals* (not increments) at most every 2 s via
+   `push_stats`, which keeps the larger value, so retries can't double-count. While the app is
+   open it subscribes to Realtime changes on `daily_stats`; RLS limits those to you and your friends.
+
+The whole database is in [`supabase/schema.sql`](supabase/schema.sql): tables, RLS, and the functions.
+Clients can only read; every write goes through a function that touches the caller's rows only.
+
+**Setup:** run `schema.sql` in the SQL editor, turn on *Authentication → Sign In / Providers →
+Allow anonymous sign-ins*, and add the keys to `local.properties`:
+
+```properties
+supabase.url=https://<ref>.supabase.co
+supabase.anonKey=<anon key>
+```
+
+**Limits:** clearing the app's data or reinstalling creates a new anonymous user, and the old
+friends are gone. With no server-side rate limiting, a determined user can fake their own count
+(capped at 10,000 a day) or try to guess invite codes.
 
 ---
 
@@ -142,8 +183,9 @@ The APK lands in `app/build/outputs/apk/debug/app-debug.apk`.
 | `core-model` | `UiSignal`, `Decision`, `DayStats` (sittings, hourly buckets) | No, pure Kotlin |
 | `core-detect` | `Detector`, `IndexStrategy`, `ReelsContext`, `SignalMapper`, `SignalRecorder`, plus replay tests | No, pure Kotlin |
 | `core-data` | Room database, `ReelDao`, `ReelRepository` | Yes |
+| `core-sync` | Supabase over OkHttp: anonymous auth, profile, invites, friends, Realtime (`SyncRepository`) | Yes |
 | `service` | `ReelAccessibilityService`, the overlay (`OverlayController`, `BrainCounterView`), the widget (`ReelWidgetProvider`), `BrainRot` stages, sprites | Yes |
-| `app` | Compose UI: `MainActivity`, `TodayScreen`, `HourlyChart`, theme, launcher icon | Yes |
+| `app` | Compose UI: `MainActivity`, `TodayScreen`, onboarding and friends (`FriendsScreens`), `HourlyChart`, theme, launcher icon | Yes |
 | `spike` | M0 forensic logger, a separate app (`com.reeltracker.spike`) | Yes |
 
 `core-detect` must never depend on Android. That boundary is what lets the detector run against

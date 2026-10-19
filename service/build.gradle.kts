@@ -17,5 +17,6 @@ android {
 dependencies {
     api(project(":core-detect"))
     api(project(":core-data"))
+    api(project(":core-sync"))
     implementation(libs.coroutines.android)
 }

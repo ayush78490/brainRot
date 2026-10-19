@@ -108,6 +108,14 @@ class DetectorTest {
     }
 
     @Test
+    fun `brainrot overlay keeps reels, brainrot app exits`() {
+        page(1)
+        assertEquals(emptyList<Decision>(), d.accept(UiSignal.Foreground("com.reeltracker", "android.widget.FrameLayout", t++)))
+        assertTrue(d.inReels)
+        assertEquals(listOf(ExitReels), d.accept(UiSignal.Foreground("com.reeltracker", "com.reeltracker.ui.MainActivity", t++)))
+    }
+
+    @Test
     fun `main activity window state keeps us in reels`() {
         page(1)
         assertEquals(

@@ -18,6 +18,7 @@ rootProject.name = "reeltracker"
 include(":core-model")   // pure Kotlin
 include(":core-detect")  // pure Kotlin, JVM tests
 include(":core-data")    // Room, ReelRepository
+include(":core-sync")    // Supabase: anonymous auth, friends, live counts
 include(":service")      // ReelAccessibilityService, OverlayController
 include(":app")          // Compose UI
 

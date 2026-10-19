@@ -10,10 +10,29 @@
 
         <activity
             android:name=".ui.MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Invite links: https://brain-rot-drab.vercel.app/?invite=CODE. Path "/" only, so the
+                 APK download (/brainrot.apk) still goes to the browser. Verified by
+                 docs/.well-known/assetlinks.json. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="brain-rot-drab.vercel.app" />
+                <data android:path="/" />
+            </intent-filter>
+            <!-- Fallback the website's "Open in Brainrot" button uses: brainrot://invite/CODE -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="brainrot" android:host="invite" />
             </intent-filter>
         </activity>
     </application>

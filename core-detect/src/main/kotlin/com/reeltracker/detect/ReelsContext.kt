@@ -36,5 +36,8 @@ object ReelsContext {
 
     fun isHostWindow(cls: String?): Boolean = cls in hostWindows
 
-    fun isOverlayPackage(pkg: String): Boolean = pkg in overlayPackages
+    /** Brainrot's own screen replaces Instagram (an invite link, the profile capture); its overlay doesn't. */
+    private const val OWN_ACTIVITY = "com.reeltracker.ui.MainActivity"
+
+    fun isOverlay(pkg: String, cls: String?): Boolean = pkg in overlayPackages && cls != OWN_ACTIVITY
 }

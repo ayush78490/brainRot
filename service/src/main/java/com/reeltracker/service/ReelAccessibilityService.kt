@@ -1,6 +1,7 @@
 package com.reeltracker.service
 
 import android.accessibilityservice.AccessibilityService
+import android.content.Intent
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
 import com.reeltracker.data.ReelGraph
@@ -9,23 +10,33 @@ import com.reeltracker.detect.Detector
 import com.reeltracker.detect.RawEvent
 import com.reeltracker.detect.SignalMapper
 import com.reeltracker.model.Decision
+import com.reeltracker.sync.SyncGraph
+import com.reeltracker.sync.SyncRepository
+import com.reeltracker.sync.TodayTotals
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 /**
  * Adapter. Android types live here and nowhere else: AccessibilityEvent -> UiSignal -> Detector,
- * then Decisions are acted on. No tree traversal, no text reads.
+ * then Decisions are acted on. No tree traversal. The only text read is the username and name on
+ * Instagram's own-profile screen, and only while the app has armed a capture ([ProfileReader]).
  */
 class ReelAccessibilityService : AccessibilityService() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val detector = Detector()
     private lateinit var repo: ReelRepository
+    private lateinit var sync: SyncRepository
     private lateinit var overlay: OverlayController
 
     /**
@@ -43,7 +54,46 @@ class ReelAccessibilityService : AccessibilityService() {
         scope.launch(Dispatchers.IO) {
             repo.todayCount.distinctUntilChanged().collect { ReelWidgetProvider.update(this@ReelAccessibilityService, it) }
         }
+        sync = SyncGraph.repository(this)
+        scope.launch(Dispatchers.IO) { pushToFriends() }
+        scope.launch { watchForProfile() }
         ReelServiceState.connected = true
+    }
+
+    /**
+     * Friends see today's totals within a couple of seconds. Totals, not increments, so a failed
+     * or repeated send can't miscount. At most one send per [PUSH_EVERY_MS]; the newest total wins.
+     */
+    private suspend fun pushToFriends() {
+        repo.todayStats
+            .map { TodayTotals(LocalDate.now(), it.count, (it.scrollingMs / 1000).toInt()) }
+            .distinctUntilChanged()
+            .conflate()
+            .collect {
+                sync.push(it)
+                delay(PUSH_EVERY_MS)
+            }
+    }
+
+    /** While a capture is armed, check the screen every half second until Instagram's own profile is up. */
+    private suspend fun watchForProfile() {
+        ReelServiceState.captureArmed.collectLatest { armed ->
+            if (!armed) return@collectLatest
+            val deadline = SystemClock.elapsedRealtime() + CAPTURE_WINDOW_MS
+            while (SystemClock.elapsedRealtime() < deadline) {
+                val account = runCatching { ProfileReader.read(rootInActiveWindow) }.getOrNull()
+                if (account != null) {
+                    ReelServiceState.deliver(account)
+                    // Back to Brainrot to confirm. Allowed from the background for accessibility services.
+                    packageManager.getLaunchIntentForPackage(packageName)?.let {
+                        startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+                    }
+                    return@collectLatest
+                }
+                delay(500)
+            }
+            ReelServiceState.disarmCapture()
+        }
     }
 
     override fun onAccessibilityEvent(e: AccessibilityEvent) {
@@ -99,6 +149,11 @@ class ReelAccessibilityService : AccessibilityService() {
     }
 
     override fun onInterrupt() = Unit
+
+    private companion object {
+        const val PUSH_EVERY_MS = 2_000L
+        const val CAPTURE_WINDOW_MS = 3 * 60_000L
+    }
 
     override fun onDestroy() {
         ReelServiceState.connected = false
